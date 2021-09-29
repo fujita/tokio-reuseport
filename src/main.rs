@@ -1,9 +1,35 @@
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use tokio_stream::StreamExt;
 
-async fn serve(idx: usize) {
-    let addr: std::net::SocketAddr = "0.0.0.0:8080".parse().unwrap();
+use tonic::{transport::Server, Request, Response, Status};
+
+use hello_world::greeter_server::{Greeter, GreeterServer};
+use hello_world::{HelloReply, HelloRequest};
+
+pub mod hello_world {
+    tonic::include_proto!("helloworld");
+}
+
+#[derive(Debug, Default)]
+pub struct MyGreeter {}
+
+#[tonic::async_trait]
+impl Greeter for MyGreeter {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let reply = hello_world::HelloReply {
+            message: format!("Hello {}!", request.into_inner().name),
+        };
+        Ok(Response::new(reply))
+    }
+}
+
+async fn serve(_: usize) {
+    let greeter = MyGreeter::default();
+
+    let addr: std::net::SocketAddr = "0.0.0.0:50051".parse().unwrap();
     let sock = socket2::Socket::new(
         match addr {
             SocketAddr::V4(_) => socket2::Domain::IPV4,
@@ -18,26 +44,16 @@ async fn serve(idx: usize) {
     sock.set_reuse_port(true).unwrap();
     sock.set_nonblocking(true).unwrap();
     sock.bind(&addr.into()).unwrap();
-    sock.listen(1024).unwrap();
+    sock.listen(8192).unwrap();
 
-    let mut incomming =
+    let incoming =
         tokio_stream::wrappers::TcpListenerStream::new(TcpListener::from_std(sock.into()).unwrap());
-    loop {
-        let conn = incomming.next().await;
-        if let Some(conn) = conn {
-            match conn {
-                Ok(conn) => {
-                    println!("worker {}: Accepted new conn: {:?}", idx, conn);
-                    tokio::spawn(async move {
-                        // handle client
-                    });
-                }
-                Err(_) => {
-                    break;
-                }
-            }
-        }
-    }
+
+    Server::builder()
+        .add_service(GreeterServer::new(greeter))
+        .serve_with_incoming(incoming)
+        .await
+        .unwrap();
 }
 
 fn main() {

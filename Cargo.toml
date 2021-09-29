@@ -13,3 +13,8 @@ thread-id = "*"
 tokio = { version = "1.10", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 nix = "*"
+tonic = "0.5"
+prost = "0.8"
+
+[build-dependencies]
+tonic-build = "0.5"
