@@ -1,5 +1,5 @@
 [package]
-name = "tokio-reuseport"
+name = "greeter-reuseport"
 version = "0.1.0"
 authors = ["FUJITA Tomonori <fujita.tomonori@gmail.com>"]
 edition = "2018"
